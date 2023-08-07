@@ -1,0 +1,49 @@
+version: "4.0"
+
+services:
+  product-service:
+    platform: linux/x86_64
+    build: product-service/
+    ports:
+      - "8080:8080"
+
+  price-service:
+    platform: linux/x86_64
+    build: price-service/
+    ports:
+      - "8081:8080"
+
+  jaeger-service:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14250"
+
+  collector:
+    image: otel/opentelemetry-collector:0.72.0
+    command: [ "--config=/etc/otel/otel-collector-config.yml" ]
+    volumes:
+      - ./config/otel-collector-config.yml:/etc/otel/otel-collector-config.yml
+    ports:
+      - "4317:4317"
+    depends_on:
+      - jaeger-service
+  prometheus:
+    image: prom/prometheus:v2.41.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - jaeger-service
+      - collector
+  grafana:
+    image: grafana/grafana:9.2.20
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_data:/var/lib/grafana
+volumes:
+  grafana_data: {}
